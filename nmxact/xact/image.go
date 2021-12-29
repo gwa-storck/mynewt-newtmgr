@@ -418,6 +418,8 @@ type ImageUpgradeCmd struct {
 	CmdBase
 	Data        []byte
 	NoErase     bool
+	ResetDevice bool
+	Hash        []byte
 	ProgressCb  ImageUploadProgressFn
 	LastOff     uint32
 	Upgrade     bool
@@ -435,6 +437,7 @@ func NewImageUpgradeCmd() *ImageUpgradeCmd {
 	return &ImageUpgradeCmd{
 		CmdBase:  NewCmdBase(),
 		NoErase:  false,
+		ResetDevice: false,
 		ImageNum: 0,
 	}
 }
@@ -535,7 +538,31 @@ func (c *ImageUpgradeCmd) Run(s sesn.Sesn) (Result, error) {
 	}
 	ures, err := c.runUpload(s)
 	if err != nil {
+		fmt.Printf("failed\n")
 		return nil, err
+	}
+
+	if len(c.Hash) > 0 {
+		fmt.Printf("set image %x to test\n", c.Hash)
+		t := nmp.NewImageStateWriteReq()
+		t.Hash = c.Hash
+		t.Confirm = false
+	
+		_, err = txReq(s, t.Msg(), &c.CmdBase)
+		if err != nil {
+			fmt.Printf("failed\n")
+			return nil, err
+		}
+	}
+
+	if c.ResetDevice == true {
+		fmt.Printf("reset device\n")
+		r := nmp.NewResetReq()
+		_, err = txReq(s, r.Msg(), &c.CmdBase)
+		if err != nil {
+			fmt.Printf("failed\n")
+			return nil, err
+		}
 	}
 
 	upgradeRes := newImageUpgradeResult()
